@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>減肥健身進階追蹤</title>
+<title>減肥健身追蹤 Pro 2.0</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -11,7 +11,7 @@
 <body class="bg-pink-100 min-h-screen p-4">
 <div class="max-w-5xl mx-auto">
 
-<h1 class="text-3xl font-bold text-center mb-6">💖 減肥健身進階追蹤</h1>
+<h1 class="text-3xl font-bold text-center mb-6">💖 減肥健身追蹤 Pro 2.0</h1>
 
 <!-- 月份切換 -->
 <div class="flex justify-between items-center mb-4">
@@ -20,36 +20,51 @@
 <button onclick="changeMonth(1)" class="bg-pink-400 text-white px-4 py-2 rounded">➡</button>
 </div>
 
-<!-- 月曆 -->
 <div id="calendar" class="grid grid-cols-7 gap-2 text-center mb-8"></div>
 
-<!-- 每日記錄 -->
-<div class="bg-white p-4 rounded shadow mb-8">
-<h2 class="text-xl font-bold mb-3">📅 今日記錄</h2>
-
-<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-
-<label><input type="checkbox" id="breakfast"> 早餐健康</label>
-<label><input type="checkbox" id="noSugar"> 無糖</label>
-<label><input type="checkbox" id="water"> 足夠喝水</label>
-
-<label><input type="checkbox" id="gym"> 🏋 健身</label>
-<label><input type="checkbox" id="swim"> 🏊 游泳</label>
-<label><input type="checkbox" id="treadmill"> 🏃 跑步機</label>
-
+<!-- 選日期 -->
+<div class="bg-white p-4 rounded shadow mb-6">
+<h2 class="font-bold mb-2">📅 選擇記錄日期</h2>
+<input type="date" id="selectedDate" class="border p-2 rounded w-full">
 </div>
 
-<div class="mt-3">
-<input type="number" id="weight" step="0.1" placeholder="今日體重 (kg)"
-class="border p-2 rounded w-full">
-</div>
+<!-- 飲食紀錄 -->
+<div class="bg-white p-4 rounded shadow mb-6">
+<h2 class="text-xl font-bold mb-3">🥗 飲食紀錄</h2>
 
-<button onclick="saveToday()" class="mt-4 bg-pink-500 text-white px-4 py-2 rounded w-full">
-儲存今日
+<label><input type="checkbox" id="breakfast"> 沒吃炸物</label><br>
+<label><input type="checkbox" id="noSugar"> 無糖</label><br>
+<label><input type="checkbox" id="water"> 無凍飲</label><br>
+
+<button onclick="saveDiet()" class="mt-3 bg-green-400 text-white px-4 py-2 rounded w-full">
+儲存飲食
 </button>
 </div>
 
-<!-- 統計區 -->
+<!-- 運動紀錄 -->
+<div class="bg-white p-4 rounded shadow mb-6">
+<h2 class="text-xl font-bold mb-3">🏋 運動紀錄</h2>
+
+<label><input type="checkbox" id="gym"> 健身</label><br>
+<label><input type="checkbox" id="swim"> 游泳</label><br>
+<label><input type="checkbox" id="treadmill"> 跑步機</label><br>
+
+<button onclick="saveExercise()" class="mt-3 bg-blue-400 text-white px-4 py-2 rounded w-full">
+儲存運動
+</button>
+</div>
+
+<!-- 體重 -->
+<div class="bg-white p-4 rounded shadow mb-8">
+<h2 class="font-bold mb-2">⚖ 體重</h2>
+<input type="number" id="weight" step="0.1" placeholder="體重 (kg)"
+class="border p-2 rounded w-full">
+<button onclick="saveWeight()" class="mt-3 bg-pink-500 text-white px-4 py-2 rounded w-full">
+儲存體重
+</button>
+</div>
+
+<!-- 圖表 -->
 <div class="grid md:grid-cols-2 gap-6">
 
 <div class="bg-white p-4 rounded shadow">
@@ -69,7 +84,6 @@ class="border p-2 rounded w-full">
 
 </div>
 
-<!-- 分析 -->
 <div class="bg-white p-4 rounded shadow mt-6">
 <h3 class="font-bold mb-2">📊 本月分析</h3>
 <p id="analysis"></p>
@@ -79,124 +93,137 @@ class="border p-2 rounded w-full">
 
 <script>
 
-let currentDate = new Date()
-let data = JSON.parse(localStorage.getItem("fitnessData")) || {}
+let currentDate=new Date()
+let data=JSON.parse(localStorage.getItem("fitnessData"))||{}
 
-function formatDate(date){
-return date.toISOString().split("T")[0]
+function formatDate(d){return d.toISOString().split("T")[0]}
+
+document.getElementById("selectedDate").value=formatDate(new Date())
+
+function getSelectedKey(){
+return document.getElementById("selectedDate").value
 }
 
-function changeMonth(offset){
-currentDate.setMonth(currentDate.getMonth()+offset)
-renderCalendar()
-renderCharts()
-}
+function saveDiet(){
+let key=getSelectedKey()
+if(!data[key]) data[key]={diet:{},exercise:{}}
 
-function renderCalendar(){
-let calendar = document.getElementById("calendar")
-calendar.innerHTML = ""
-let year = currentDate.getFullYear()
-let month = currentDate.getMonth()
-
-document.getElementById("monthYear").innerText =
-`${year} 年 ${month+1} 月`
-
-let firstDay = new Date(year,month,1).getDay()
-let days = new Date(year,month+1,0).getDate()
-
-for(let i=0;i<firstDay;i++){
-calendar.innerHTML += "<div></div>"
-}
-
-for(let d=1; d<=days; d++){
-let date = new Date(year,month,d)
-let key = formatDate(date)
-let emoji = ""
-
-if(data[key]){
-let entry = data[key]
-
-if(entry.exercise?.gym) emoji+="🏋"
-if(entry.exercise?.swim) emoji+="🏊"
-if(entry.exercise?.treadmill) emoji+="🏃"
-
-let dietScore = Object.values(entry.diet||{}).filter(v=>v).length
-if(dietScore===3) emoji+="👍"
-else if(dietScore>0) emoji+="💪"
-}
-
-calendar.innerHTML += `
-<div class="bg-white rounded p-2 shadow cursor-pointer"
-onclick="loadDay('${key}')">
-${d}<div>${emoji}</div>
-</div>`
-}
-}
-
-function loadDay(key){
-let entry = data[key] || {}
-document.getElementById("breakfast").checked = entry.diet?.breakfast || false
-document.getElementById("noSugar").checked = entry.diet?.noSugar || false
-document.getElementById("water").checked = entry.diet?.water || false
-
-document.getElementById("gym").checked = entry.exercise?.gym || false
-document.getElementById("swim").checked = entry.exercise?.swim || false
-document.getElementById("treadmill").checked = entry.exercise?.treadmill || false
-
-document.getElementById("weight").value = entry.weight || ""
-}
-
-function saveToday(){
-let key = formatDate(new Date())
-
-data[key] = {
-diet:{
+data[key].diet={
 breakfast:breakfast.checked,
 noSugar:noSugar.checked,
 water:water.checked
-},
-exercise:{
+}
+saveAll()
+}
+
+function saveExercise(){
+let key=getSelectedKey()
+if(!data[key]) data[key]={diet:{},exercise:{}}
+
+data[key].exercise={
 gym:gym.checked,
 swim:swim.checked,
 treadmill:treadmill.checked
-},
-weight:parseFloat(weight.value)||null
+}
+saveAll()
 }
 
+function saveWeight(){
+let key=getSelectedKey()
+if(!data[key]) data[key]={diet:{},exercise:{}}
+
+data[key].weight=parseFloat(weight.value)||null
+saveAll()
+}
+
+function saveAll(){
 localStorage.setItem("fitnessData",JSON.stringify(data))
 renderCalendar()
 renderCharts()
 alert("已儲存 ✅")
 }
 
+function loadDay(key){
+document.getElementById("selectedDate").value=key
+let entry=data[key]||{}
+
+breakfast.checked=entry.diet?.breakfast||false
+noSugar.checked=entry.diet?.noSugar||false
+water.checked=entry.diet?.water||false
+
+gym.checked=entry.exercise?.gym||false
+swim.checked=entry.exercise?.swim||false
+treadmill.checked=entry.exercise?.treadmill||false
+
+weight.value=entry.weight||""
+}
+
+function changeMonth(o){
+currentDate.setMonth(currentDate.getMonth()+o)
+renderCalendar()
+renderCharts()
+}
+
+function renderCalendar(){
+let cal=document.getElementById("calendar")
+cal.innerHTML=""
+let y=currentDate.getFullYear()
+let m=currentDate.getMonth()
+monthYear.innerText=`${y} 年 ${m+1} 月`
+
+let first=new Date(y,m,1).getDay()
+let days=new Date(y,m+1,0).getDate()
+
+for(let i=0;i<first;i++) cal.innerHTML+="<div></div>"
+
+for(let d=1;d<=days;d++){
+let date=new Date(y,m,d)
+let key=formatDate(date)
+let emoji=""
+if(data[key]){
+let e=data[key]
+if(e.exercise?.gym) emoji+="🏋"
+if(e.exercise?.swim) emoji+="🏊"
+if(e.exercise?.treadmill) emoji+="🏃"
+
+let dietScore=Object.values(e.diet||{}).filter(v=>v).length
+if(dietScore===3) emoji+="👍"
+else if(dietScore>0) emoji+="💪"
+}
+
+cal.innerHTML+=`
+<div class="bg-white p-2 rounded shadow cursor-pointer"
+onclick="loadDay('${key}')">
+${d}<div>${emoji}</div>
+</div>`
+}
+}
+
 let exerciseChart,dietChart,weightChart
 
 function renderCharts(){
-
 let gym=0,swim=0,tread=0
-let dietFull=0,dietPartial=0
-let weightDates=[],weightValues=[]
+let full=0,partial=0
+let wDates=[],wVals=[]
 
-let month=currentDate.getMonth()
-let year=currentDate.getFullYear()
+let m=currentDate.getMonth()
+let y=currentDate.getFullYear()
 
-for(let key in data){
-let date=new Date(key)
-if(date.getMonth()===month && date.getFullYear()===year){
+for(let k in data){
+let d=new Date(k)
+if(d.getMonth()===m && d.getFullYear()===y){
+let e=data[k]
+if(e.exercise?.gym) gym++
+if(e.exercise?.swim) swim++
+if(e.exercise?.treadmill) tread++
 
-let entry=data[key]
+let ds=Object.values(e.diet||{}).filter(v=>v).length
+if(ds===3) full++
+else if(ds>0) partial++
 
-if(entry.exercise?.gym) gym++
-if(entry.exercise?.swim) swim++
-if(entry.exercise?.treadmill) tread++
-
-let dietScore=Object.values(entry.diet||{}).filter(v=>v).length
-if(dietScore===3) dietFull++
-else if(dietScore>0) dietPartial++
-
-if(entry.weight){
-weightDates.push(date.getDate())
-weightValues.push(entry.weight)
+if(e.weight){
+wDates.push(d.getDate())
+wVals.push(e.weight)
 }
 }
 }
@@ -205,46 +232,31 @@ if(exerciseChart) exerciseChart.destroy()
 if(dietChart) dietChart.destroy()
 if(weightChart) weightChart.destroy()
 
-exerciseChart=new Chart(exerciseChart=document.getElementById("exerciseChart"),{
+exerciseChart=new Chart(document.getElementById("exerciseChart"),{
 type:"bar",
-data:{
-labels:["健身","游泳","跑步機"],
-datasets:[{
-data:[gym,swim,tread],
-backgroundColor:["#f472b6","#60a5fa","#34d399"]
-}]
-}
+data:{labels:["健身","游泳","跑步機"],
+datasets:[{data:[gym,swim,tread],
+backgroundColor:["#f472b6","#60a5fa","#34d399"]}]}
 })
 
 dietChart=new Chart(document.getElementById("dietChart"),{
 type:"doughnut",
-data:{
-labels:["全部完成","部分完成"],
-datasets:[{
-data:[dietFull,dietPartial],
-backgroundColor:["#facc15","#fb923c"]
-}]
-}
+data:{labels:["全部完成","部分完成"],
+datasets:[{data:[full,partial],
+backgroundColor:["#facc15","#fb923c"]}]}
 })
 
 weightChart=new Chart(document.getElementById("weightChart"),{
 type:"line",
-data:{
-labels:weightDates,
-datasets:[{
-label:"體重",
-data:weightValues,
-borderColor:"#f472b6",
-fill:false
-}]
-}
+data:{labels:wDates,
+datasets:[{label:"體重",data:wVals,borderColor:"#f472b6"}]}
 })
 
-document.getElementById("analysis").innerText =
+analysis.innerText=
 `本月健身 ${gym} 次，游泳 ${swim} 次，跑步機 ${tread} 次。
-飲食完全達標 ${dietFull} 天。
-平均體重：${weightValues.length?
-(weightValues.reduce((a,b)=>a+b,0)/weightValues.length).toFixed(1)
+飲食完全達標 ${full} 天。
+平均體重：${wVals.length?
+(wVals.reduce((a,b)=>a+b,0)/wVals.length).toFixed(1)
 :"尚無資料"} kg`
 }
 
