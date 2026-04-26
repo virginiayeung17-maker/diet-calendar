@@ -2,251 +2,255 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>減肥打卡月曆</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>減肥健身進階追蹤</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body class="bg-pink-100 min-h-screen p-3">
+<body class="bg-pink-100 min-h-screen p-4">
+<div class="max-w-5xl mx-auto">
 
-<div class="max-w-md mx-auto">
+<h1 class="text-3xl font-bold text-center mb-6">💖 減肥健身進階追蹤</h1>
 
-<h1 class="text-2xl font-bold text-center mb-4">
-💖 減肥打卡月曆
-</h1>
-
+<!-- 月份切換 -->
 <div class="flex justify-between items-center mb-4">
-<button onclick="changeMonth(-1)" class="bg-pink-400 text-white px-4 py-2 rounded text-lg">←</button>
-<h2 id="monthYear" class="text-lg font-semibold"></h2>
-<button onclick="changeMonth(1)" class="bg-pink-400 text-white px-4 py-2 rounded text-lg">→</button>
+<button onclick="changeMonth(-1)" class="bg-pink-400 text-white px-4 py-2 rounded">⬅</button>
+<h2 id="monthYear" class="text-xl font-semibold"></h2>
+<button onclick="changeMonth(1)" class="bg-pink-400 text-white px-4 py-2 rounded">➡</button>
 </div>
 
-<div class="grid grid-cols-7 gap-1 text-center font-semibold text-sm">
-<div>日</div><div>一</div><div>二</div>
-<div>三</div><div>四</div><div>五</div><div>六</div>
+<!-- 月曆 -->
+<div id="calendar" class="grid grid-cols-7 gap-2 text-center mb-8"></div>
+
+<!-- 每日記錄 -->
+<div class="bg-white p-4 rounded shadow mb-8">
+<h2 class="text-xl font-bold mb-3">📅 今日記錄</h2>
+
+<div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+
+<label><input type="checkbox" id="breakfast"> 早餐健康</label>
+<label><input type="checkbox" id="noSugar"> 無糖</label>
+<label><input type="checkbox" id="water"> 足夠喝水</label>
+
+<label><input type="checkbox" id="gym"> 🏋 健身</label>
+<label><input type="checkbox" id="swim"> 🏊 游泳</label>
+<label><input type="checkbox" id="treadmill"> 🏃 跑步機</label>
+
 </div>
 
-<div id="calendar" class="grid grid-cols-7 gap-1 mt-2"></div>
-
-<div class="mt-5 p-3 bg-white rounded shadow text-center">
-<h3 class="font-bold mb-2">📊 本月達標</h3>
-<div id="stats" class="text-lg font-semibold"></div>
+<div class="mt-3">
+<input type="number" id="weight" step="0.1" placeholder="今日體重 (kg)"
+class="border p-2 rounded w-full">
 </div>
 
-<div class="mt-6 bg-white p-4 rounded shadow">
-<h3 class="font-bold mb-3 text-center">📉 體重變化曲線</h3>
+<button onclick="saveToday()" class="mt-4 bg-pink-500 text-white px-4 py-2 rounded w-full">
+儲存今日
+</button>
+</div>
+
+<!-- 統計區 -->
+<div class="grid md:grid-cols-2 gap-6">
+
+<div class="bg-white p-4 rounded shadow">
+<h3 class="font-bold mb-2">🏋 本月運動次數</h3>
+<canvas id="exerciseChart"></canvas>
+</div>
+
+<div class="bg-white p-4 rounded shadow">
+<h3 class="font-bold mb-2">🥗 飲食完成比例</h3>
+<canvas id="dietChart"></canvas>
+</div>
+
+<div class="bg-white p-4 rounded shadow md:col-span-2">
+<h3 class="font-bold mb-2">⚖ 體重趨勢</h3>
 <canvas id="weightChart"></canvas>
 </div>
 
 </div>
 
+<!-- 分析 -->
+<div class="bg-white p-4 rounded shadow mt-6">
+<h3 class="font-bold mb-2">📊 本月分析</h3>
+<p id="analysis"></p>
+</div>
+
+</div>
+
 <script>
-let currentDate = new Date();
-let chart;
 
-const dailyChecklist = [
-"沒有吃炸物",
-"沒有吃甜食",
-"沒有喝含糖飲料",
-"沒有喝冰飲"
-];
+let currentDate = new Date()
+let data = JSON.parse(localStorage.getItem("fitnessData")) || {}
 
-const saturdayExtra = "一星期行機 30min x2";
+function formatDate(date){
+return date.toISOString().split("T")[0]
+}
 
-function renderCalendar() {
-const calendar = document.getElementById("calendar");
-calendar.innerHTML = "";
+function changeMonth(offset){
+currentDate.setMonth(currentDate.getMonth()+offset)
+renderCalendar()
+renderCharts()
+}
 
-const year = currentDate.getFullYear();
-const month = currentDate.getMonth();
+function renderCalendar(){
+let calendar = document.getElementById("calendar")
+calendar.innerHTML = ""
+let year = currentDate.getFullYear()
+let month = currentDate.getMonth()
+
 document.getElementById("monthYear").innerText =
-year + "年 " + (month + 1) + "月";
+`${year} 年 ${month+1} 月`
 
-const firstDay = new Date(year, month, 1).getDay();
-const daysInMonth = new Date(year, month + 1, 0).getDate();
+let firstDay = new Date(year,month,1).getDay()
+let days = new Date(year,month+1,0).getDate()
 
-for (let i = 0; i < firstDay; i++) {
-calendar.innerHTML += "<div></div>";
+for(let i=0;i<firstDay;i++){
+calendar.innerHTML += "<div></div>"
 }
 
-for (let day = 1; day <= daysInMonth; day++) {
-const dateObj = new Date(year, month, day);
-const dateKey = `${year}-${month+1}-${day}`;
-const data = JSON.parse(localStorage.getItem(dateKey)) || {};
-const isSaturday = dateObj.getDay() === 6;
+for(let d=1; d<=days; d++){
+let date = new Date(year,month,d)
+let key = formatDate(date)
+let emoji = ""
 
-let items = [...dailyChecklist];
-if (isSaturday) items.push(saturdayExtra);
+if(data[key]){
+let entry = data[key]
 
-let completedCount = items.filter(item => data[item]).length;
-let totalCount = items.length;
+if(entry.exercise?.gym) emoji+="🏋"
+if(entry.exercise?.swim) emoji+="🏊"
+if(entry.exercise?.treadmill) emoji+="🏃"
 
-let emoji = "";
-
-if (completedCount === totalCount && totalCount > 0) {
-emoji = isSaturday ? "🔥🎉✅" : "🎉✅";
-} else {
-emoji = "👍".repeat(completedCount);
+let dietScore = Object.values(entry.diet||{}).filter(v=>v).length
+if(dietScore===3) emoji+="👍"
+else if(dietScore>0) emoji+="💪"
 }
 
-let weightIcon = data.weight ? "⚖️" : "";
-
-let dayDiv = document.createElement("div");
-dayDiv.className = `
-rounded p-2 text-center text-sm 
-min-h-[75px] flex flex-col justify-between
-${completedCount === totalCount && totalCount > 0 ? "bg-green-200" : "bg-white"}
-`;
-
-dayDiv.innerHTML = `
-<div class="font-bold">${day}</div>
-<div class="text-lg">${emoji}</div>
-<div>${weightIcon}</div>
-`;
-
-dayDiv.onclick = () => openChecklist(dateObj, dateKey, day);
-calendar.appendChild(dayDiv);
-}
-
-updateStats();
-updateChart();
-}
-
-function openChecklist(dateObj, dateKey, day) {
-let data = JSON.parse(localStorage.getItem(dateKey)) || {};
-const isSaturday = dateObj.getDay() === 6;
-
-let checklistItems = [...dailyChecklist];
-if (isSaturday) checklistItems.push(saturdayExtra);
-
-let content = checklistItems.map(item => `
-<label class="block mb-2 text-lg">
-<input type="checkbox"
-${data[item] ? "checked" : ""}
-onchange="saveItem('${dateKey}','${item}',this.checked)"
-class="mr-2 scale-125">
-${item}
-</label>
-`).join("");
-
-let weightInput = "";
-if (isSaturday) {
-weightInput = `
-<div class="mt-3">
-<label class="block font-semibold text-lg">⚖️ 本週體重 (kg)</label>
-<input type="number" step="0.1"
-value="${data.weight || ""}"
-onchange="saveWeight('${dateKey}',this.value)"
-class="w-full border rounded px-3 py-2 mt-1 text-lg">
-</div>
-`;
-}
-
-const modal = document.createElement("div");
-modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-3";
-modal.innerHTML = `
-<div class="bg-white p-4 rounded w-full max-w-sm">
-<h3 class="font-bold text-lg mb-3">第 ${day} 天 ✅</h3>
-${content}
-${weightInput}
-<button onclick="this.closest('.fixed').remove();renderCalendar();"
-class="mt-4 bg-pink-400 text-white py-2 rounded w-full text-lg">
-完成
-</button>
-</div>
-`;
-document.body.appendChild(modal);
-}
-
-function saveItem(dateKey, item, value) {
-let data = JSON.parse(localStorage.getItem(dateKey)) || {};
-data[item] = value;
-localStorage.setItem(dateKey, JSON.stringify(data));
-}
-
-function saveWeight(dateKey, value) {
-let data = JSON.parse(localStorage.getItem(dateKey)) || {};
-data.weight = value;
-localStorage.setItem(dateKey, JSON.stringify(data));
-}
-
-function updateStats() {
-const year = currentDate.getFullYear();
-const month = currentDate.getMonth();
-const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-let perfectDays = 0;
-
-for (let day = 1; day <= daysInMonth; day++) {
-const dateObj = new Date(year, month, day);
-const dateKey = `${year}-${month+1}-${day}`;
-const data = JSON.parse(localStorage.getItem(dateKey)) || {};
-
-let items = [...dailyChecklist];
-if (dateObj.getDay() === 6) items.push(saturdayExtra);
-
-let completedCount = items.filter(item => data[item]).length;
-if (completedCount === items.length && items.length > 0) {
-perfectDays++;
+calendar.innerHTML += `
+<div class="bg-white rounded p-2 shadow cursor-pointer"
+onclick="loadDay('${key}')">
+${d}<div>${emoji}</div>
+</div>`
 }
 }
 
-document.getElementById("stats").innerText =
-`🎉 ${perfectDays} 天全部完成！`;
+function loadDay(key){
+let entry = data[key] || {}
+document.getElementById("breakfast").checked = entry.diet?.breakfast || false
+document.getElementById("noSugar").checked = entry.diet?.noSugar || false
+document.getElementById("water").checked = entry.diet?.water || false
+
+document.getElementById("gym").checked = entry.exercise?.gym || false
+document.getElementById("swim").checked = entry.exercise?.swim || false
+document.getElementById("treadmill").checked = entry.exercise?.treadmill || false
+
+document.getElementById("weight").value = entry.weight || ""
 }
 
-function updateChart() {
-let labels = [];
-let weights = [];
+function saveToday(){
+let key = formatDate(new Date())
 
-for (let i = 0; i < localStorage.length; i++) {
-let key = localStorage.key(i);
-let data = JSON.parse(localStorage.getItem(key));
-if (data.weight) {
-labels.push(key);
-weights.push(parseFloat(data.weight));
+data[key] = {
+diet:{
+breakfast:breakfast.checked,
+noSugar:noSugar.checked,
+water:water.checked
+},
+exercise:{
+gym:gym.checked,
+swim:swim.checked,
+treadmill:treadmill.checked
+},
+weight:parseFloat(weight.value)||null
+}
+
+localStorage.setItem("fitnessData",JSON.stringify(data))
+renderCalendar()
+renderCharts()
+alert("已儲存 ✅")
+}
+
+let exerciseChart,dietChart,weightChart
+
+function renderCharts(){
+
+let gym=0,swim=0,tread=0
+let dietFull=0,dietPartial=0
+let weightDates=[],weightValues=[]
+
+let month=currentDate.getMonth()
+let year=currentDate.getFullYear()
+
+for(let key in data){
+let date=new Date(key)
+if(date.getMonth()===month && date.getFullYear()===year){
+
+let entry=data[key]
+
+if(entry.exercise?.gym) gym++
+if(entry.exercise?.swim) swim++
+if(entry.exercise?.treadmill) tread++
+
+let dietScore=Object.values(entry.diet||{}).filter(v=>v).length
+if(dietScore===3) dietFull++
+else if(dietScore>0) dietPartial++
+
+if(entry.weight){
+weightDates.push(date.getDate())
+weightValues.push(entry.weight)
 }
 }
+}
 
-labels.sort();
+if(exerciseChart) exerciseChart.destroy()
+if(dietChart) dietChart.destroy()
+if(weightChart) weightChart.destroy()
 
-if (chart) chart.destroy();
-
-const ctx = document.getElementById("weightChart");
-
-chart = new Chart(ctx, {
-type: "line",
-data: {
-labels: labels,
-datasets: [{
-label: "體重 (kg)",
-data: weights,
-borderColor: "#ec4899",
-backgroundColor: "rgba(236,72,153,0.2)",
-tension: 0.3,
-fill: true
+exerciseChart=new Chart(exerciseChart=document.getElementById("exerciseChart"),{
+type:"bar",
+data:{
+labels:["健身","游泳","跑步機"],
+datasets:[{
+data:[gym,swim,tread],
+backgroundColor:["#f472b6","#60a5fa","#34d399"]
 }]
-},
-options: {
-responsive: true,
-plugins: {
-legend: { display: false }
-},
-scales: {
-y: { beginAtZero: false }
 }
+})
+
+dietChart=new Chart(document.getElementById("dietChart"),{
+type:"doughnut",
+data:{
+labels:["全部完成","部分完成"],
+datasets:[{
+data:[dietFull,dietPartial],
+backgroundColor:["#facc15","#fb923c"]
+}]
 }
-});
+})
+
+weightChart=new Chart(document.getElementById("weightChart"),{
+type:"line",
+data:{
+labels:weightDates,
+datasets:[{
+label:"體重",
+data:weightValues,
+borderColor:"#f472b6",
+fill:false
+}]
+}
+})
+
+document.getElementById("analysis").innerText =
+`本月健身 ${gym} 次，游泳 ${swim} 次，跑步機 ${tread} 次。
+飲食完全達標 ${dietFull} 天。
+平均體重：${weightValues.length?
+(weightValues.reduce((a,b)=>a+b,0)/weightValues.length).toFixed(1)
+:"尚無資料"} kg`
 }
 
-function changeMonth(offset) {
-currentDate.setMonth(currentDate.getMonth() + offset);
-renderCalendar();
-}
+renderCalendar()
+renderCharts()
 
-renderCalendar();
 </script>
-
 </body>
 </html>
