@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>減肥健身追蹤 Pro 2.0</title>
+<title>減肥健身追蹤 Pro 3.0</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -11,7 +11,7 @@
 <body class="bg-pink-100 min-h-screen p-4">
 <div class="max-w-5xl mx-auto">
 
-<h1 class="text-3xl font-bold text-center mb-6">💖 減肥健身追蹤 Pro 2.0</h1>
+<h1 class="text-3xl font-bold text-center mb-6">💖 減肥健身追蹤</h1>
 
 <!-- 月份切換 -->
 <div class="flex justify-between items-center mb-4">
@@ -22,46 +22,38 @@
 
 <div id="calendar" class="grid grid-cols-7 gap-2 text-center mb-8"></div>
 
-<!-- 選日期 -->
-<div class="bg-white p-4 rounded shadow mb-6">
-<h2 class="font-bold mb-2">📅 選擇記錄日期</h2>
-<input type="date" id="selectedDate" class="border p-2 rounded w-full">
-</div>
+<!-- 記錄區 -->
+<div id="recordSection" class="bg-white p-4 rounded shadow mb-6">
 
-<!-- 飲食紀錄 -->
-<div class="bg-white p-4 rounded shadow mb-6">
-<h2 class="text-xl font-bold mb-3">🥗 飲食紀錄</h2>
+<h2 class="font-bold mb-3">📅 記錄日期</h2>
+<input type="date" id="selectedDate" class="border p-2 rounded w-full mb-4">
 
+<h3 class="font-bold mb-2">🥗 飲食</h3>
 <label><input type="checkbox" id="breakfast"> 沒吃炸物</label><br>
 <label><input type="checkbox" id="noSugar"> 無糖</label><br>
-<label><input type="checkbox" id="water"> 無凍飲</label><br>
+<label><input type="checkbox" id="water"> 沒有凍飲</label><br>
 
-<button onclick="saveDiet()" class="mt-3 bg-green-400 text-white px-4 py-2 rounded w-full">
+<button onclick="saveDiet()" class="mt-3 bg-green-400 text-white px-4 py-2 rounded w-full mb-4">
 儲存飲食
 </button>
-</div>
 
-<!-- 運動紀錄 -->
-<div class="bg-white p-4 rounded shadow mb-6">
-<h2 class="text-xl font-bold mb-3">🏋 運動紀錄</h2>
-
+<h3 class="font-bold mb-2">🏋 運動</h3>
 <label><input type="checkbox" id="gym"> 健身</label><br>
 <label><input type="checkbox" id="swim"> 游泳</label><br>
 <label><input type="checkbox" id="treadmill"> 跑步機</label><br>
 
-<button onclick="saveExercise()" class="mt-3 bg-blue-400 text-white px-4 py-2 rounded w-full">
+<button onclick="saveExercise()" class="mt-3 bg-blue-400 text-white px-4 py-2 rounded w-full mb-4">
 儲存運動
 </button>
-</div>
 
-<!-- 體重 -->
-<div class="bg-white p-4 rounded shadow mb-8">
-<h2 class="font-bold mb-2">⚖ 體重</h2>
+<h3 class="font-bold mb-2">⚖ 體重</h3>
 <input type="number" id="weight" step="0.1" placeholder="體重 (kg)"
 class="border p-2 rounded w-full">
+
 <button onclick="saveWeight()" class="mt-3 bg-pink-500 text-white px-4 py-2 rounded w-full">
 儲存體重
 </button>
+
 </div>
 
 <!-- 圖表 -->
@@ -93,22 +85,106 @@ class="border p-2 rounded w-full">
 
 <script>
 
-let currentDate=new Date()
-let data=JSON.parse(localStorage.getItem("fitnessData"))||{}
+let currentDate = new Date()
+let selectedKey = formatDate(new Date())
+let data = JSON.parse(localStorage.getItem("fitnessData")) || {}
 
-function formatDate(d){return d.toISOString().split("T")[0]}
+document.getElementById("selectedDate").value = selectedKey
 
-document.getElementById("selectedDate").value=formatDate(new Date())
+// ✅ 修正時區版本
+function formatDate(d){
+let year = d.getFullYear()
+let month = String(d.getMonth()+1).padStart(2,"0")
+let day = String(d.getDate()).padStart(2,"0")
+return `${year}-${month}-${day}`
+}
+
+function changeMonth(o){
+currentDate.setMonth(currentDate.getMonth()+o)
+renderCalendar()
+renderCharts()
+}
+
+function renderCalendar(){
+let cal = document.getElementById("calendar")
+cal.innerHTML = ""
+
+let y = currentDate.getFullYear()
+let m = currentDate.getMonth()
+
+monthYear.innerText = `${y} 年 ${m+1} 月`
+
+let first = new Date(y,m,1).getDay()
+let days = new Date(y,m+1,0).getDate()
+
+let todayKey = formatDate(new Date())
+
+for(let i=0;i<first;i++) cal.innerHTML += "<div></div>"
+
+for(let d=1; d<=days; d++){
+
+let date = new Date(y,m,d)
+let key = formatDate(date)
+
+let emoji = ""
+if(data[key]){
+let e = data[key]
+
+if(e.exercise?.gym) emoji+="🏋"
+if(e.exercise?.swim) emoji+="🏊"
+if(e.exercise?.treadmill) emoji+="🏃"
+
+let dietScore = Object.values(e.diet||{}).filter(v=>v).length
+if(dietScore===3) emoji+="👍"
+else if(dietScore>0) emoji+="💪"
+}
+
+let border = ""
+if(key === todayKey) border = "border-2 border-pink-500"
+if(key === selectedKey) border = "border-2 border-blue-500"
+
+cal.innerHTML += `
+<div class="bg-white p-2 rounded shadow cursor-pointer ${border}"
+onclick="loadDay('${key}')">
+${d}
+<div>${emoji}</div>
+</div>`
+}
+}
+
+function loadDay(key){
+selectedKey = key
+document.getElementById("selectedDate").value = key
+
+let entry = data[key] || {}
+
+breakfast.checked = entry.diet?.breakfast || false
+noSugar.checked = entry.diet?.noSugar || false
+water.checked = entry.diet?.water || false
+
+gym.checked = entry.exercise?.gym || false
+swim.checked = entry.exercise?.swim || false
+treadmill.checked = entry.exercise?.treadmill || false
+
+weight.value = entry.weight || ""
+
+renderCalendar()
+
+window.scrollTo({
+top: document.getElementById("recordSection").offsetTop - 20,
+behavior: "smooth"
+})
+}
 
 function getSelectedKey(){
-return document.getElementById("selectedDate").value
+selectedKey = document.getElementById("selectedDate").value
+return selectedKey
 }
 
 function saveDiet(){
-let key=getSelectedKey()
-if(!data[key]) data[key]={diet:{},exercise:{}}
-
-data[key].diet={
+let key = getSelectedKey()
+if(!data[key]) data[key] = {diet:{},exercise:{}}
+data[key].diet = {
 breakfast:breakfast.checked,
 noSugar:noSugar.checked,
 water:water.checked
@@ -117,10 +193,9 @@ saveAll()
 }
 
 function saveExercise(){
-let key=getSelectedKey()
-if(!data[key]) data[key]={diet:{},exercise:{}}
-
-data[key].exercise={
+let key = getSelectedKey()
+if(!data[key]) data[key] = {diet:{},exercise:{}}
+data[key].exercise = {
 gym:gym.checked,
 swim:swim.checked,
 treadmill:treadmill.checked
@@ -129,10 +204,9 @@ saveAll()
 }
 
 function saveWeight(){
-let key=getSelectedKey()
-if(!data[key]) data[key]={diet:{},exercise:{}}
-
-data[key].weight=parseFloat(weight.value)||null
+let key = getSelectedKey()
+if(!data[key]) data[key] = {diet:{},exercise:{}}
+data[key].weight = parseFloat(weight.value)||null
 saveAll()
 }
 
@@ -143,65 +217,10 @@ renderCharts()
 alert("已儲存 ✅")
 }
 
-function loadDay(key){
-document.getElementById("selectedDate").value=key
-let entry=data[key]||{}
-
-breakfast.checked=entry.diet?.breakfast||false
-noSugar.checked=entry.diet?.noSugar||false
-water.checked=entry.diet?.water||false
-
-gym.checked=entry.exercise?.gym||false
-swim.checked=entry.exercise?.swim||false
-treadmill.checked=entry.exercise?.treadmill||false
-
-weight.value=entry.weight||""
-}
-
-function changeMonth(o){
-currentDate.setMonth(currentDate.getMonth()+o)
-renderCalendar()
-renderCharts()
-}
-
-function renderCalendar(){
-let cal=document.getElementById("calendar")
-cal.innerHTML=""
-let y=currentDate.getFullYear()
-let m=currentDate.getMonth()
-monthYear.innerText=`${y} 年 ${m+1} 月`
-
-let first=new Date(y,m,1).getDay()
-let days=new Date(y,m+1,0).getDate()
-
-for(let i=0;i<first;i++) cal.innerHTML+="<div></div>"
-
-for(let d=1;d<=days;d++){
-let date=new Date(y,m,d)
-let key=formatDate(date)
-let emoji=""
-if(data[key]){
-let e=data[key]
-if(e.exercise?.gym) emoji+="🏋"
-if(e.exercise?.swim) emoji+="🏊"
-if(e.exercise?.treadmill) emoji+="🏃"
-
-let dietScore=Object.values(e.diet||{}).filter(v=>v).length
-if(dietScore===3) emoji+="👍"
-else if(dietScore>0) emoji+="💪"
-}
-
-cal.innerHTML+=`
-<div class="bg-white p-2 rounded shadow cursor-pointer"
-onclick="loadDay('${key}')">
-${d}<div>${emoji}</div>
-</div>`
-}
-}
-
 let exerciseChart,dietChart,weightChart
 
 function renderCharts(){
+
 let gym=0,swim=0,tread=0
 let full=0,partial=0
 let wDates=[],wVals=[]
@@ -212,7 +231,9 @@ let y=currentDate.getFullYear()
 for(let k in data){
 let d=new Date(k)
 if(d.getMonth()===m && d.getFullYear()===y){
+
 let e=data[k]
+
 if(e.exercise?.gym) gym++
 if(e.exercise?.swim) swim++
 if(e.exercise?.treadmill) tread++
@@ -252,7 +273,7 @@ data:{labels:wDates,
 datasets:[{label:"體重",data:wVals,borderColor:"#f472b6"}]}
 })
 
-analysis.innerText=
+analysis.innerText =
 `本月健身 ${gym} 次，游泳 ${swim} 次，跑步機 ${tread} 次。
 飲食完全達標 ${full} 天。
 平均體重：${wVals.length?
